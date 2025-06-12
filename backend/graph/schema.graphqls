@@ -1,0 +1,477 @@
+# schema.graphqls
+
+scalar DateTime
+scalar JSON
+
+"""
+User account with authentication and permissions
+"""
+type User {
+  id: ID!
+  email: String!
+  firstName: String
+  lastName: String
+  role: UserRole!
+  businesses: [Business!]
+  createdAt: DateTime!
+  updatedAt: DateTime
+}
+
+enum UserRole {
+  ADMIN
+  BUSINESS_OWNER
+  COMPLIANCE_MANAGER
+  STAFF
+}
+
+"""
+Business entity that holds licenses
+"""
+type Business {
+  id: ID!
+  name: String!
+  type: BusinessType!
+  description: String
+  licenses: [License!]
+  locations: [Location!]
+  users: [User!]
+  createdAt: DateTime!
+  updatedAt: DateTime
+}
+
+enum BusinessType {
+  CULTIVATOR
+  PROCESSOR
+  DISTRIBUTOR
+  RETAILER
+  TESTING_LAB
+  DELIVERY
+  INTEGRATED
+}
+
+"""
+Physical location of a business
+"""
+type Location {
+  id: ID!
+  businessId: ID!
+  business: Business!
+  address: String!
+  city: String!
+  state: String!
+  zipCode: String!
+  isPrimary: Boolean!
+  licenses: [License!]
+  createdAt: DateTime!
+  updatedAt: DateTime
+}
+
+"""
+License issued to a business by a regulatory authority
+"""
+type License {
+  id: ID!
+  businessId: ID!
+  business: Business!
+  locationId: ID
+  location: Location
+  licenseNumber: String!
+  licenseType: LicenseType!
+  jurisdictionId: ID!
+  jurisdiction: Jurisdiction!
+  issuedDate: DateTime!
+  expirationDate: DateTime!
+  status: LicenseStatus!
+  renewalRequirements: [RenewalRequirement!]
+  complianceChecks: [ComplianceCheck!]
+  documents: [Document!]
+  notes: String
+  createdAt: DateTime!
+  updatedAt: DateTime
+}
+
+enum LicenseStatus {
+  ACTIVE
+  PENDING
+  EXPIRED
+  REVOKED
+  SUSPENDED
+  RENEWAL_IN_PROGRESS
+}
+
+enum LicenseType {
+  CULTIVATION
+  MANUFACTURING
+  DISTRIBUTION
+  RETAIL
+  DELIVERY
+  TESTING
+  MICROBUSINESS
+  RESEARCH
+}
+
+"""
+Jurisdiction (state/country) with specific regulations
+"""
+type Jurisdiction {
+  id: ID!
+  name: String!
+  type: JurisdictionType!
+  country: String!
+  regulatoryBody: String!
+  regulatoryWebsite: String
+  licenseTypes: [String!]!
+  regulations: [Regulation!]
+  createdAt: DateTime!
+  updatedAt: DateTime
+}
+
+enum JurisdictionType {
+  US_STATE
+  CANADIAN_PROVINCE
+  COUNTRY
+}
+
+"""
+Specific regulation within a jurisdiction
+"""
+type Regulation {
+  id: ID!
+  jurisdictionId: ID!
+  jurisdiction: Jurisdiction!
+  title: String!
+  description: String!
+  category: RegulationCategory!
+  effectiveDate: DateTime!
+  requirements: JSON
+  documentationUrl: String
+  createdAt: DateTime!
+  updatedAt: DateTime
+}
+
+enum RegulationCategory {
+  LICENSING
+  TESTING
+  PACKAGING
+  LABELING
+  TRACKING
+  SECURITY
+  TRANSPORTATION
+  ADVERTISING
+  TAXATION
+}
+
+"""
+Requirements for license renewal
+"""
+type RenewalRequirement {
+  id: ID!
+  licenseId: ID!
+  license: License!
+  description: String!
+  deadline: DateTime
+  isCompleted: Boolean!
+  documents: [Document!]
+  createdAt: DateTime!
+  updatedAt: DateTime
+}
+
+"""
+Compliance check for a license
+"""
+type ComplianceCheck {
+  id: ID!
+  licenseId: ID!
+  license: License!
+  title: String!
+  description: String!
+  dueDate: DateTime!
+  status: ComplianceStatus!
+  assignedTo: User
+  notes: String
+  createdAt: DateTime!
+  updatedAt: DateTime
+}
+
+enum ComplianceStatus {
+  COMPLIANT
+  NON_COMPLIANT
+  PENDING_REVIEW
+  NEEDS_ATTENTION
+  NOT_APPLICABLE
+}
+
+"""
+Document attached to a license or renewal requirement
+"""
+type Document {
+  id: ID!
+  name: String!
+  description: String
+  fileUrl: String!
+  fileType: String!
+  uploadedBy: User!
+  licenseId: ID
+  license: License
+  renewalRequirementId: ID
+  renewalRequirement: RenewalRequirement
+  createdAt: DateTime!
+  updatedAt: DateTime
+}
+
+"""
+Notification for upcoming deadlines or compliance issues
+"""
+type Notification {
+  id: ID!
+  userId: ID!
+  user: User!
+  title: String!
+  message: String!
+  type: NotificationType!
+  relatedEntityId: ID
+  relatedEntityType: String
+  isRead: Boolean!
+  createdAt: DateTime!
+}
+
+enum NotificationType {
+  LICENSE_EXPIRING
+  RENEWAL_DUE
+  COMPLIANCE_ISSUE
+  DOCUMENT_REQUIRED
+  REGULATION_UPDATE
+}
+
+# Queries
+type Query {
+  # User queries
+  me: User
+  user(id: ID!): User
+  users: [User!]!
+
+  # Business queries
+  business(id: ID!): Business
+  businesses(filter: BusinessFilter): [Business!]!
+
+  # License queries
+  license(id: ID!): License
+  licenses(filter: LicenseFilter): [License!]!
+  expiringLicenses(days: Int!): [License!]!
+
+  # Jurisdiction queries
+  jurisdiction(id: ID!): Jurisdiction
+  jurisdictions: [Jurisdiction!]!
+
+  # Compliance queries
+  complianceChecks(licenseId: ID!): [ComplianceCheck!]!
+  complianceStatus(businessId: ID!): ComplianceStatusSummary!
+
+  # Notification queries
+  notifications(userId: ID!): [Notification!]!
+
+  # Dashboard data
+  dashboardSummary(businessId: ID!): DashboardSummary!
+
+  # Hello query (keep for testing)
+  hello: String!
+}
+
+# Input types for filtering
+input BusinessFilter {
+  type: BusinessType
+  state: String
+  search: String
+}
+
+input LicenseFilter {
+  businessId: ID
+  jurisdictionId: ID
+  licenseType: LicenseType
+  status: LicenseStatus
+  expiringBefore: DateTime
+}
+
+# Custom types for aggregated data
+type ComplianceStatusSummary {
+  businessId: ID!
+  compliantCount: Int!
+  nonCompliantCount: Int!
+  pendingCount: Int!
+  attentionCount: Int!
+  overallStatus: ComplianceStatus!
+}
+
+type DashboardSummary {
+  businessId: ID!
+  activeLicenses: Int!
+  expiringLicenses: Int!
+  complianceIssues: Int!
+  upcomingRenewals: Int!
+  recentNotifications: [Notification!]!
+}
+
+# Mutations
+type Mutation {
+  # User mutations
+  createUser(input: CreateUserInput!): User!
+  updateUser(id: ID!, input: UpdateUserInput!): User!
+  deleteUser(id: ID!): Boolean!
+
+  # Business mutations
+  createBusiness(input: CreateBusinessInput!): Business!
+  updateBusiness(id: ID!, input: UpdateBusinessInput!): Business!
+  deleteBusiness(id: ID!): Boolean!
+
+  # License mutations
+  createLicense(input: CreateLicenseInput!): License!
+  updateLicense(id: ID!, input: UpdateLicenseInput!): License!
+  deleteLicense(id: ID!): Boolean!
+
+  # Location mutations
+  createLocation(input: CreateLocationInput!): Location!
+  updateLocation(id: ID!, input: UpdateLocationInput!): Location!
+  deleteLocation(id: ID!): Boolean!
+
+  # Compliance mutations
+  createComplianceCheck(input: CreateComplianceCheckInput!): ComplianceCheck!
+  updateComplianceCheck(
+    id: ID!
+    input: UpdateComplianceCheckInput!
+  ): ComplianceCheck!
+  deleteComplianceCheck(id: ID!): Boolean!
+
+  # Renewal requirement mutations
+  createRenewalRequirement(
+    input: CreateRenewalRequirementInput!
+  ): RenewalRequirement!
+  updateRenewalRequirement(
+    id: ID!
+    input: UpdateRenewalRequirementInput!
+  ): RenewalRequirement!
+  completeRenewalRequirement(id: ID!): RenewalRequirement!
+
+  # Document mutations (without file upload for now)
+  createDocument(input: CreateDocumentInput!): Document!
+  deleteDocument(id: ID!): Boolean!
+
+  # Notification mutations
+  markNotificationAsRead(id: ID!): Notification!
+  markAllNotificationsAsRead(userId: ID!): Boolean!
+}
+
+# Input types for mutations
+input CreateUserInput {
+  email: String!
+  firstName: String!
+  lastName: String!
+  role: UserRole!
+  password: String!
+}
+
+input UpdateUserInput {
+  email: String
+  firstName: String
+  lastName: String
+  role: UserRole
+}
+
+input CreateBusinessInput {
+  name: String!
+  type: BusinessType!
+  description: String
+}
+
+input UpdateBusinessInput {
+  name: String
+  type: BusinessType
+  description: String
+}
+
+input CreateLicenseInput {
+  businessId: ID!
+  locationId: ID
+  licenseNumber: String!
+  licenseType: LicenseType!
+  jurisdictionId: ID!
+  issuedDate: DateTime!
+  expirationDate: DateTime!
+  status: LicenseStatus!
+  notes: String
+}
+
+input UpdateLicenseInput {
+  locationId: ID
+  licenseNumber: String
+  licenseType: LicenseType
+  jurisdictionId: ID
+  issuedDate: DateTime
+  expirationDate: DateTime
+  status: LicenseStatus
+  notes: String
+}
+
+input CreateLocationInput {
+  businessId: ID!
+  address: String!
+  city: String!
+  state: String!
+  zipCode: String!
+  isPrimary: Boolean!
+}
+
+input UpdateLocationInput {
+  address: String
+  city: String
+  state: String
+  zipCode: String
+  isPrimary: Boolean
+}
+
+input CreateComplianceCheckInput {
+  licenseId: ID!
+  title: String!
+  description: String!
+  dueDate: DateTime!
+  status: ComplianceStatus!
+  assignedToId: ID
+  notes: String
+}
+
+input UpdateComplianceCheckInput {
+  title: String
+  description: String
+  dueDate: DateTime
+  status: ComplianceStatus
+  assignedToId: ID
+  notes: String
+}
+
+input CreateRenewalRequirementInput {
+  licenseId: ID!
+  description: String!
+  deadline: DateTime
+  isCompleted: Boolean!
+}
+
+input UpdateRenewalRequirementInput {
+  description: String
+  deadline: DateTime
+  isCompleted: Boolean
+}
+
+input CreateDocumentInput {
+  name: String!
+  description: String
+  fileUrl: String!
+  fileType: String!
+  licenseId: ID
+  renewalRequirementId: ID
+}
+
+# Subscription for real-time updates
+type Subscription {
+  notificationAdded(userId: ID!): Notification!
+  licenseStatusChanged(businessId: ID): License!
+  complianceStatusChanged(businessId: ID): ComplianceCheck!
+}

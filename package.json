@@ -1,0 +1,39 @@
+{
+  "name": "budsafe",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "backend:dev": "cd backend && go run .",
+    "backend:build": "cd backend && go build .",
+    "dev:all": "concurrently \"yarn dev\" \"yarn backend:dev\"",
+    "docker:dev": "docker-compose up"
+  },
+  "dependencies": {
+    "@apollo/client": "^3.13.8",
+    "@heroicons/react": "^2.2.0",
+    "firebase": "^11.7.1",
+    "graphql": "^16.11.0",
+    "graphql-request": "^7.1.2",
+    "next": "15.3.2",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-firebase-hooks": "^5.1.1",
+    "concurrently": "^7.6.0"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "15.3.2",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
+
