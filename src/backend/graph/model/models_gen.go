@@ -9,47 +9,10 @@ import (
 	"strconv"
 )
 
-// Business entity that holds licenses
-type Business struct {
-	ID          string       `json:"id"`
-	Name        string       `json:"name"`
-	Type        BusinessType `json:"type"`
-	Description *string      `json:"description,omitempty"`
-	Licenses    []*License   `json:"licenses,omitempty"`
-	Locations   []*Location  `json:"locations,omitempty"`
-	Users       []*User      `json:"users,omitempty"`
-	CreatedAt   string       `json:"createdAt"`
-	UpdatedAt   *string      `json:"updatedAt,omitempty"`
-}
-
 type BusinessFilter struct {
 	Type   *BusinessType `json:"type,omitempty"`
 	State  *string       `json:"state,omitempty"`
 	Search *string       `json:"search,omitempty"`
-}
-
-// Compliance check for a license
-type ComplianceCheck struct {
-	ID          string           `json:"id"`
-	LicenseID   string           `json:"licenseId"`
-	License     *License         `json:"license"`
-	Title       string           `json:"title"`
-	Description string           `json:"description"`
-	DueDate     string           `json:"dueDate"`
-	Status      ComplianceStatus `json:"status"`
-	AssignedTo  *User            `json:"assignedTo,omitempty"`
-	Notes       *string          `json:"notes,omitempty"`
-	CreatedAt   string           `json:"createdAt"`
-	UpdatedAt   *string          `json:"updatedAt,omitempty"`
-}
-
-type ComplianceStatusSummary struct {
-	BusinessID        string           `json:"businessId"`
-	CompliantCount    int              `json:"compliantCount"`
-	NonCompliantCount int              `json:"nonCompliantCount"`
-	PendingCount      int              `json:"pendingCount"`
-	AttentionCount    int              `json:"attentionCount"`
-	OverallStatus     ComplianceStatus `json:"overallStatus"`
 }
 
 type CreateBusinessInput struct {
@@ -61,7 +24,6 @@ type CreateBusinessInput struct {
 type CreateComplianceCheckInput struct {
 	LicenseID    string           `json:"licenseId"`
 	Title        string           `json:"title"`
-	Description  string           `json:"description"`
 	DueDate      string           `json:"dueDate"`
 	Status       ComplianceStatus `json:"status"`
 	AssignedToID *string          `json:"assignedToId,omitempty"`
@@ -110,7 +72,6 @@ type CreateUserInput struct {
 	FirstName string   `json:"firstName"`
 	LastName  string   `json:"lastName"`
 	Role      UserRole `json:"role"`
-	Password  string   `json:"password"`
 }
 
 type DashboardSummary struct {
@@ -138,50 +99,6 @@ type Document struct {
 	UpdatedAt            *string             `json:"updatedAt,omitempty"`
 }
 
-// Jurisdiction (state/country) with specific regulations
-type Jurisdiction struct {
-	ID                string           `json:"id"`
-	Name              string           `json:"name"`
-	Type              JurisdictionType `json:"type"`
-	Country           string           `json:"country"`
-	RegulatoryBody    string           `json:"regulatoryBody"`
-	RegulatoryWebsite *string          `json:"regulatoryWebsite,omitempty"`
-	LicenseTypes      []string         `json:"licenseTypes"`
-	Regulations       []*Regulation    `json:"regulations,omitempty"`
-	CreatedAt         string           `json:"createdAt"`
-	UpdatedAt         *string          `json:"updatedAt,omitempty"`
-}
-
-// License issued to a business by a regulatory authority
-type License struct {
-	ID                  string                `json:"id"`
-	BusinessID          string                `json:"businessId"`
-	Business            *Business             `json:"business"`
-	LocationID          *string               `json:"locationId,omitempty"`
-	Location            *Location             `json:"location,omitempty"`
-	LicenseNumber       string                `json:"licenseNumber"`
-	LicenseType         LicenseType           `json:"licenseType"`
-	JurisdictionID      string                `json:"jurisdictionId"`
-	Jurisdiction        *Jurisdiction         `json:"jurisdiction"`
-	IssuedDate          string                `json:"issuedDate"`
-	ExpirationDate      string                `json:"expirationDate"`
-	Status              LicenseStatus         `json:"status"`
-	RenewalRequirements []*RenewalRequirement `json:"renewalRequirements,omitempty"`
-	ComplianceChecks    []*ComplianceCheck    `json:"complianceChecks,omitempty"`
-	Documents           []*Document           `json:"documents,omitempty"`
-	Notes               *string               `json:"notes,omitempty"`
-	CreatedAt           string                `json:"createdAt"`
-	UpdatedAt           *string               `json:"updatedAt,omitempty"`
-}
-
-type LicenseFilter struct {
-	BusinessID     *string        `json:"businessId,omitempty"`
-	JurisdictionID *string        `json:"jurisdictionId,omitempty"`
-	LicenseType    *LicenseType   `json:"licenseType,omitempty"`
-	Status         *LicenseStatus `json:"status,omitempty"`
-	ExpiringBefore *string        `json:"expiringBefore,omitempty"`
-}
-
 // Physical location of a business
 type Location struct {
 	ID         string     `json:"id"`
@@ -200,20 +117,6 @@ type Location struct {
 type Mutation struct {
 }
 
-// Notification for upcoming deadlines or compliance issues
-type Notification struct {
-	ID                string           `json:"id"`
-	UserID            string           `json:"userId"`
-	User              *User            `json:"user"`
-	Title             string           `json:"title"`
-	Message           string           `json:"message"`
-	Type              NotificationType `json:"type"`
-	RelatedEntityID   *string          `json:"relatedEntityId,omitempty"`
-	RelatedEntityType *string          `json:"relatedEntityType,omitempty"`
-	IsRead            bool             `json:"isRead"`
-	CreatedAt         string           `json:"createdAt"`
-}
-
 type Query struct {
 }
 
@@ -226,7 +129,7 @@ type Regulation struct {
 	Description      string             `json:"description"`
 	Category         RegulationCategory `json:"category"`
 	EffectiveDate    string             `json:"effectiveDate"`
-	Requirements     *string            `json:"requirements,omitempty"`
+	Requirements     map[string]any     `json:"requirements,omitempty"`
 	DocumentationURL *string            `json:"documentationUrl,omitempty"`
 	CreatedAt        string             `json:"createdAt"`
 	UpdatedAt        *string            `json:"updatedAt,omitempty"`
@@ -256,7 +159,6 @@ type UpdateBusinessInput struct {
 
 type UpdateComplianceCheckInput struct {
 	Title        *string           `json:"title,omitempty"`
-	Description  *string           `json:"description,omitempty"`
 	DueDate      *string           `json:"dueDate,omitempty"`
 	Status       *ComplianceStatus `json:"status,omitempty"`
 	AssignedToID *string           `json:"assignedToId,omitempty"`
@@ -293,18 +195,6 @@ type UpdateUserInput struct {
 	FirstName *string   `json:"firstName,omitempty"`
 	LastName  *string   `json:"lastName,omitempty"`
 	Role      *UserRole `json:"role,omitempty"`
-}
-
-// User account with authentication and permissions
-type User struct {
-	ID         string      `json:"id"`
-	Email      string      `json:"email"`
-	FirstName  *string     `json:"firstName,omitempty"`
-	LastName   *string     `json:"lastName,omitempty"`
-	Role       UserRole    `json:"role"`
-	Businesses []*Business `json:"businesses,omitempty"`
-	CreatedAt  string      `json:"createdAt"`
-	UpdatedAt  *string     `json:"updatedAt,omitempty"`
 }
 
 type BusinessType string
@@ -556,14 +446,16 @@ func (e LicenseStatus) MarshalJSON() ([]byte, error) {
 type LicenseType string
 
 const (
-	LicenseTypeCultivation   LicenseType = "CULTIVATION"
-	LicenseTypeManufacturing LicenseType = "MANUFACTURING"
-	LicenseTypeDistribution  LicenseType = "DISTRIBUTION"
-	LicenseTypeRetail        LicenseType = "RETAIL"
-	LicenseTypeDelivery      LicenseType = "DELIVERY"
-	LicenseTypeTesting       LicenseType = "TESTING"
-	LicenseTypeMicrobusiness LicenseType = "MICROBUSINESS"
-	LicenseTypeResearch      LicenseType = "RESEARCH"
+	LicenseTypeCultivation    LicenseType = "CULTIVATION"
+	LicenseTypeManufacturing  LicenseType = "MANUFACTURING"
+	LicenseTypeDistribution   LicenseType = "DISTRIBUTION"
+	LicenseTypeRetail         LicenseType = "RETAIL"
+	LicenseTypeDelivery       LicenseType = "DELIVERY"
+	LicenseTypeTesting        LicenseType = "TESTING"
+	LicenseTypeMicrobusiness  LicenseType = "MICROBUSINESS"
+	LicenseTypeResearch       LicenseType = "RESEARCH"
+	LicenseTypeTransportation LicenseType = "TRANSPORTATION"
+	LicenseTypeNursery        LicenseType = "NURSERY"
 )
 
 var AllLicenseType = []LicenseType{
@@ -575,11 +467,13 @@ var AllLicenseType = []LicenseType{
 	LicenseTypeTesting,
 	LicenseTypeMicrobusiness,
 	LicenseTypeResearch,
+	LicenseTypeTransportation,
+	LicenseTypeNursery,
 }
 
 func (e LicenseType) IsValid() bool {
 	switch e {
-	case LicenseTypeCultivation, LicenseTypeManufacturing, LicenseTypeDistribution, LicenseTypeRetail, LicenseTypeDelivery, LicenseTypeTesting, LicenseTypeMicrobusiness, LicenseTypeResearch:
+	case LicenseTypeCultivation, LicenseTypeManufacturing, LicenseTypeDistribution, LicenseTypeRetail, LicenseTypeDelivery, LicenseTypeTesting, LicenseTypeMicrobusiness, LicenseTypeResearch, LicenseTypeTransportation, LicenseTypeNursery:
 		return true
 	}
 	return false

@@ -18,23 +18,35 @@ node_modules/
 # Next.js
 .next/
 out/
+dist/
 
 # Environment variables
 .env
 .env.local
+.env.*.local
 .env.development.local
 .env.test.local
 .env.production.local
 
 # Go
-backend/*.exe
-backend/*.exe~
-backend/*.dll
-backend/*.so
-backend/*.dylib
-backend/*.test
-backend/*.out
-backend/go.work
+src/backend/*.exe
+src/backend/*.exe~
+src/backend/*.dll
+src/backend/*.so
+src/backend/*.dylib
+src/backend/*.test
+src/backend/*.out
+src/backend/go.work
+src/backend/bin/
+
+# Google Cloud credentials and secrets
+service-account-key.json
+budsafe-service-account.json
+*.pem
+*.key
+# Databases
+*.db
+*.sqlite
 
 # IDE
 .idea/
@@ -57,3 +69,4 @@ coverage/
 # Misc
 *.tgz
 *.tar.gz
+*.pid

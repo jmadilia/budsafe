@@ -8,6 +8,7 @@ User account with authentication and permissions
 """
 type User {
   id: ID!
+  firebaseUid: String!
   email: String!
   firstName: String
   lastName: String
@@ -34,7 +35,7 @@ type Business {
   description: String
   licenses: [License!]
   locations: [Location!]
-  users: [User!]
+  ownerId: ID!
   createdAt: DateTime!
   updatedAt: DateTime
 }
@@ -85,6 +86,7 @@ type License {
   renewalRequirements: [RenewalRequirement!]
   complianceChecks: [ComplianceCheck!]
   documents: [Document!]
+  feeAmount: Float!
   notes: String
   createdAt: DateTime!
   updatedAt: DateTime
@@ -108,6 +110,8 @@ enum LicenseType {
   TESTING
   MICROBUSINESS
   RESEARCH
+  TRANSPORTATION
+  NURSERY
 }
 
 """
@@ -181,16 +185,17 @@ Compliance check for a license
 """
 type ComplianceCheck {
   id: ID!
-  licenseId: ID!
-  license: License!
+  licenseId: ID! # Foreign key to the License
+  complianceCheckLicense: License! # The resolved License object
   title: String!
-  description: String!
   dueDate: DateTime!
-  status: ComplianceStatus!
-  assignedTo: User
-  notes: String
-  createdAt: DateTime!
-  updatedAt: DateTime
+  checkedAt: DateTime
+  status: ComplianceStatus! # Mapped from the 'status' column
+  userId: ID # Nullable if a check can be unassigned
+  complianceCheckUser: User # Nullable if a check can be unassigned
+  notes: String # Nullable
+  createdAt: DateTime! # Mapped from the 'created_at' column
+  updatedAt: DateTime # Mapped from the 'updated_at' column, nullable
 }
 
 enum ComplianceStatus {
@@ -225,7 +230,7 @@ Notification for upcoming deadlines or compliance issues
 type Notification {
   id: ID!
   userId: ID!
-  user: User!
+  notificationUser: User!
   title: String!
   message: String!
   type: NotificationType!
@@ -233,6 +238,7 @@ type Notification {
   relatedEntityType: String
   isRead: Boolean!
   createdAt: DateTime!
+  updatedAt: DateTime
 }
 
 enum NotificationType {
@@ -366,7 +372,6 @@ input CreateUserInput {
   firstName: String!
   lastName: String!
   role: UserRole!
-  password: String!
 }
 
 input UpdateUserInput {
@@ -431,7 +436,6 @@ input UpdateLocationInput {
 input CreateComplianceCheckInput {
   licenseId: ID!
   title: String!
-  description: String!
   dueDate: DateTime!
   status: ComplianceStatus!
   assignedToId: ID
@@ -440,7 +444,6 @@ input CreateComplianceCheckInput {
 
 input UpdateComplianceCheckInput {
   title: String
-  description: String
   dueDate: DateTime
   status: ComplianceStatus
   assignedToId: ID
@@ -475,3 +478,4 @@ type Subscription {
   licenseStatusChanged(businessId: ID): License!
   complianceStatusChanged(businessId: ID): ComplianceCheck!
 }
+

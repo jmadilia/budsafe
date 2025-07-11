@@ -1,0 +1,76 @@
+# Where are all the schema files located? globs are supported eg  src/**/*.graphqls
+schema:
+  - graph/*.graphqls
+
+# Where should the generated server code go?
+exec:
+  filename: graph/generated/generated.go
+  package: generated
+
+# Where should any generated models go?
+model:
+  filename: graph/model/models_gen.go
+  package: model
+
+# Where should the resolver implementations go?
+resolver:
+  layout: follow-schema
+  dir: graph
+  package: graph
+  filename_template: "{name}.resolvers.go"
+
+# Optional: turn on to use struct tags for database mapping
+struct_tag: db
+
+# This section declares type mapping between the GraphQL and go type systems
+models:
+  ID:
+    model:
+      - github.com/99designs/gqlgen/graphql.ID
+      - github.com/99designs/gqlgen/graphql.Int
+      - github.com/99designs/gqlgen/graphql.Int64
+      - github.com/99designs/gqlgen/graphql.Int32
+  Int:
+    model:
+      - github.com/99designs/gqlgen/graphql.Int
+      - github.com/99designs/gqlgen/graphql.Int64
+      - github.com/99designs/gqlgen/graphql.Int32
+  DateTime:
+    model:
+      - github.com/99designs/gqlgen/graphql.String
+  JSON:
+    model:
+      - github.com/99designs/gqlgen/graphql.Map
+  User:
+    model:
+      - budsafe/backend/graph/model.User
+  Business:
+    model:
+      - budsafe/backend/graph/model.Business
+  License:
+    model:
+      - budsafe/backend/graph/model.License
+  LicenseFilter:
+    model:
+      - budsafe/backend/graph/model.License
+  Jurisdiction:
+    model:
+      - budsafe/backend/graph/model.Jurisdiction
+  ComplianceCheck:
+    model:
+      - budsafe/backend/graph/model.ComplianceCheck
+    fields:
+      complianceCheckLicense:
+        resolver: true
+      complianceCheckUser:
+        resolver: true
+  ComplianceStatusSummary:
+    model:
+      - budsafe/backend/graph/model.ComplianceStatusSummary
+  Notification:
+    model:
+      - budsafe/backend/graph/model.Notification
+    fields:
+      notificationUser:
+        resolver: true
+

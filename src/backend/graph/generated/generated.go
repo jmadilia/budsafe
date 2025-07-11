@@ -39,9 +39,12 @@ type Config struct {
 }
 
 type ResolverRoot interface {
+	ComplianceCheck() ComplianceCheckResolver
 	Mutation() MutationResolver
+	Notification() NotificationResolver
 	Query() QueryResolver
 	Subscription() SubscriptionResolver
+	LicenseFilter() LicenseFilterResolver
 }
 
 type DirectiveRoot struct {
@@ -55,23 +58,24 @@ type ComplexityRoot struct {
 		Licenses    func(childComplexity int) int
 		Locations   func(childComplexity int) int
 		Name        func(childComplexity int) int
+		OwnerID     func(childComplexity int) int
 		Type        func(childComplexity int) int
 		UpdatedAt   func(childComplexity int) int
-		Users       func(childComplexity int) int
 	}
 
 	ComplianceCheck struct {
-		AssignedTo  func(childComplexity int) int
-		CreatedAt   func(childComplexity int) int
-		Description func(childComplexity int) int
-		DueDate     func(childComplexity int) int
-		ID          func(childComplexity int) int
-		License     func(childComplexity int) int
-		LicenseID   func(childComplexity int) int
-		Notes       func(childComplexity int) int
-		Status      func(childComplexity int) int
-		Title       func(childComplexity int) int
-		UpdatedAt   func(childComplexity int) int
+		CheckedAt              func(childComplexity int) int
+		ComplianceCheckLicense func(childComplexity int) int
+		ComplianceCheckUser    func(childComplexity int) int
+		CreatedAt              func(childComplexity int) int
+		DueDate                func(childComplexity int) int
+		ID                     func(childComplexity int) int
+		LicenseID              func(childComplexity int) int
+		Notes                  func(childComplexity int) int
+		Status                 func(childComplexity int) int
+		Title                  func(childComplexity int) int
+		UpdatedAt              func(childComplexity int) int
+		UserID                 func(childComplexity int) int
 	}
 
 	ComplianceStatusSummary struct {
@@ -127,6 +131,7 @@ type ComplexityRoot struct {
 		CreatedAt           func(childComplexity int) int
 		Documents           func(childComplexity int) int
 		ExpirationDate      func(childComplexity int) int
+		FeeAmount           func(childComplexity int) int
 		ID                  func(childComplexity int) int
 		IssuedDate          func(childComplexity int) int
 		Jurisdiction        func(childComplexity int) int
@@ -185,11 +190,12 @@ type ComplexityRoot struct {
 		ID                func(childComplexity int) int
 		IsRead            func(childComplexity int) int
 		Message           func(childComplexity int) int
+		NotificationUser  func(childComplexity int) int
 		RelatedEntityID   func(childComplexity int) int
 		RelatedEntityType func(childComplexity int) int
 		Title             func(childComplexity int) int
 		Type              func(childComplexity int) int
-		User              func(childComplexity int) int
+		UpdatedAt         func(childComplexity int) int
 		UserID            func(childComplexity int) int
 	}
 
@@ -204,7 +210,7 @@ type ComplexityRoot struct {
 		Jurisdiction     func(childComplexity int, id string) int
 		Jurisdictions    func(childComplexity int) int
 		License          func(childComplexity int, id string) int
-		Licenses         func(childComplexity int, filter *model.LicenseFilter) int
+		Licenses         func(childComplexity int, filter *model.License) int
 		Me               func(childComplexity int) int
 		Notifications    func(childComplexity int, userID string) int
 		User             func(childComplexity int, id string) int
@@ -244,17 +250,23 @@ type ComplexityRoot struct {
 	}
 
 	User struct {
-		Businesses func(childComplexity int) int
-		CreatedAt  func(childComplexity int) int
-		Email      func(childComplexity int) int
-		FirstName  func(childComplexity int) int
-		ID         func(childComplexity int) int
-		LastName   func(childComplexity int) int
-		Role       func(childComplexity int) int
-		UpdatedAt  func(childComplexity int) int
+		Businesses  func(childComplexity int) int
+		CreatedAt   func(childComplexity int) int
+		Email       func(childComplexity int) int
+		FirebaseUID func(childComplexity int) int
+		FirstName   func(childComplexity int) int
+		ID          func(childComplexity int) int
+		LastName    func(childComplexity int) int
+		Role        func(childComplexity int) int
+		UpdatedAt   func(childComplexity int) int
 	}
 }
 
+type ComplianceCheckResolver interface {
+	ComplianceCheckLicense(ctx context.Context, obj *model.ComplianceCheck) (*model.License, error)
+
+	ComplianceCheckUser(ctx context.Context, obj *model.ComplianceCheck) (*model.User, error)
+}
 type MutationResolver interface {
 	CreateUser(ctx context.Context, input model.CreateUserInput) (*model.User, error)
 	UpdateUser(ctx context.Context, id string, input model.UpdateUserInput) (*model.User, error)
@@ -279,6 +291,9 @@ type MutationResolver interface {
 	MarkNotificationAsRead(ctx context.Context, id string) (*model.Notification, error)
 	MarkAllNotificationsAsRead(ctx context.Context, userID string) (bool, error)
 }
+type NotificationResolver interface {
+	NotificationUser(ctx context.Context, obj *model.Notification) (*model.User, error)
+}
 type QueryResolver interface {
 	Me(ctx context.Context) (*model.User, error)
 	User(ctx context.Context, id string) (*model.User, error)
@@ -286,7 +301,7 @@ type QueryResolver interface {
 	Business(ctx context.Context, id string) (*model.Business, error)
 	Businesses(ctx context.Context, filter *model.BusinessFilter) ([]*model.Business, error)
 	License(ctx context.Context, id string) (*model.License, error)
-	Licenses(ctx context.Context, filter *model.LicenseFilter) ([]*model.License, error)
+	Licenses(ctx context.Context, filter *model.License) ([]*model.License, error)
 	ExpiringLicenses(ctx context.Context, days int) ([]*model.License, error)
 	Jurisdiction(ctx context.Context, id string) (*model.Jurisdiction, error)
 	Jurisdictions(ctx context.Context) ([]*model.Jurisdiction, error)
@@ -300,6 +315,10 @@ type SubscriptionResolver interface {
 	NotificationAdded(ctx context.Context, userID string) (<-chan *model.Notification, error)
 	LicenseStatusChanged(ctx context.Context, businessID *string) (<-chan *model.License, error)
 	ComplianceStatusChanged(ctx context.Context, businessID *string) (<-chan *model.ComplianceCheck, error)
+}
+
+type LicenseFilterResolver interface {
+	ExpiringBefore(ctx context.Context, obj *model.License, data *string) error
 }
 
 type executableSchema struct {
@@ -363,6 +382,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Business.Name(childComplexity), true
 
+	case "Business.ownerId":
+		if e.complexity.Business.OwnerID == nil {
+			break
+		}
+
+		return e.complexity.Business.OwnerID(childComplexity), true
+
 	case "Business.type":
 		if e.complexity.Business.Type == nil {
 			break
@@ -377,19 +403,26 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Business.UpdatedAt(childComplexity), true
 
-	case "Business.users":
-		if e.complexity.Business.Users == nil {
+	case "ComplianceCheck.checkedAt":
+		if e.complexity.ComplianceCheck.CheckedAt == nil {
 			break
 		}
 
-		return e.complexity.Business.Users(childComplexity), true
+		return e.complexity.ComplianceCheck.CheckedAt(childComplexity), true
 
-	case "ComplianceCheck.assignedTo":
-		if e.complexity.ComplianceCheck.AssignedTo == nil {
+	case "ComplianceCheck.complianceCheckLicense":
+		if e.complexity.ComplianceCheck.ComplianceCheckLicense == nil {
 			break
 		}
 
-		return e.complexity.ComplianceCheck.AssignedTo(childComplexity), true
+		return e.complexity.ComplianceCheck.ComplianceCheckLicense(childComplexity), true
+
+	case "ComplianceCheck.complianceCheckUser":
+		if e.complexity.ComplianceCheck.ComplianceCheckUser == nil {
+			break
+		}
+
+		return e.complexity.ComplianceCheck.ComplianceCheckUser(childComplexity), true
 
 	case "ComplianceCheck.createdAt":
 		if e.complexity.ComplianceCheck.CreatedAt == nil {
@@ -397,13 +430,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ComplianceCheck.CreatedAt(childComplexity), true
-
-	case "ComplianceCheck.description":
-		if e.complexity.ComplianceCheck.Description == nil {
-			break
-		}
-
-		return e.complexity.ComplianceCheck.Description(childComplexity), true
 
 	case "ComplianceCheck.dueDate":
 		if e.complexity.ComplianceCheck.DueDate == nil {
@@ -418,13 +444,6 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ComplianceCheck.ID(childComplexity), true
-
-	case "ComplianceCheck.license":
-		if e.complexity.ComplianceCheck.License == nil {
-			break
-		}
-
-		return e.complexity.ComplianceCheck.License(childComplexity), true
 
 	case "ComplianceCheck.licenseId":
 		if e.complexity.ComplianceCheck.LicenseID == nil {
@@ -460,6 +479,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.ComplianceCheck.UpdatedAt(childComplexity), true
+
+	case "ComplianceCheck.userId":
+		if e.complexity.ComplianceCheck.UserID == nil {
+			break
+		}
+
+		return e.complexity.ComplianceCheck.UserID(childComplexity), true
 
 	case "ComplianceStatusSummary.attentionCount":
 		if e.complexity.ComplianceStatusSummary.AttentionCount == nil {
@@ -740,6 +766,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.complexity.License.ExpirationDate(childComplexity), true
+
+	case "License.feeAmount":
+		if e.complexity.License.FeeAmount == nil {
+			break
+		}
+
+		return e.complexity.License.FeeAmount(childComplexity), true
 
 	case "License.id":
 		if e.complexity.License.ID == nil {
@@ -1194,6 +1227,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Notification.Message(childComplexity), true
 
+	case "Notification.notificationUser":
+		if e.complexity.Notification.NotificationUser == nil {
+			break
+		}
+
+		return e.complexity.Notification.NotificationUser(childComplexity), true
+
 	case "Notification.relatedEntityId":
 		if e.complexity.Notification.RelatedEntityID == nil {
 			break
@@ -1222,12 +1262,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.Notification.Type(childComplexity), true
 
-	case "Notification.user":
-		if e.complexity.Notification.User == nil {
+	case "Notification.updatedAt":
+		if e.complexity.Notification.UpdatedAt == nil {
 			break
 		}
 
-		return e.complexity.Notification.User(childComplexity), true
+		return e.complexity.Notification.UpdatedAt(childComplexity), true
 
 	case "Notification.userId":
 		if e.complexity.Notification.UserID == nil {
@@ -1356,7 +1396,7 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 			return 0, false
 		}
 
-		return e.complexity.Query.Licenses(childComplexity, args["filter"].(*model.LicenseFilter)), true
+		return e.complexity.Query.Licenses(childComplexity, args["filter"].(*model.License)), true
 
 	case "Query.me":
 		if e.complexity.Query.Me == nil {
@@ -1593,6 +1633,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.complexity.User.Email(childComplexity), true
 
+	case "User.firebaseUid":
+		if e.complexity.User.FirebaseUID == nil {
+			break
+		}
+
+		return e.complexity.User.FirebaseUID(childComplexity), true
+
 	case "User.firstName":
 		if e.complexity.User.FirstName == nil {
 			break
@@ -1775,6 +1822,7 @@ User account with authentication and permissions
 """
 type User {
   id: ID!
+  firebaseUid: String!
   email: String!
   firstName: String
   lastName: String
@@ -1801,7 +1849,7 @@ type Business {
   description: String
   licenses: [License!]
   locations: [Location!]
-  users: [User!]
+  ownerId: ID!
   createdAt: DateTime!
   updatedAt: DateTime
 }
@@ -1852,6 +1900,7 @@ type License {
   renewalRequirements: [RenewalRequirement!]
   complianceChecks: [ComplianceCheck!]
   documents: [Document!]
+  feeAmount: Float!
   notes: String
   createdAt: DateTime!
   updatedAt: DateTime
@@ -1875,6 +1924,8 @@ enum LicenseType {
   TESTING
   MICROBUSINESS
   RESEARCH
+  TRANSPORTATION
+  NURSERY
 }
 
 """
@@ -1948,16 +1999,17 @@ Compliance check for a license
 """
 type ComplianceCheck {
   id: ID!
-  licenseId: ID!
-  license: License!
+  licenseId: ID! # Foreign key to the License
+  complianceCheckLicense: License! # The resolved License object
   title: String!
-  description: String!
   dueDate: DateTime!
-  status: ComplianceStatus!
-  assignedTo: User
-  notes: String
-  createdAt: DateTime!
-  updatedAt: DateTime
+  checkedAt: DateTime
+  status: ComplianceStatus! # Mapped from the 'status' column
+  userId: ID # Nullable if a check can be unassigned
+  complianceCheckUser: User # Nullable if a check can be unassigned
+  notes: String # Nullable
+  createdAt: DateTime! # Mapped from the 'created_at' column
+  updatedAt: DateTime # Mapped from the 'updated_at' column, nullable
 }
 
 enum ComplianceStatus {
@@ -1992,7 +2044,7 @@ Notification for upcoming deadlines or compliance issues
 type Notification {
   id: ID!
   userId: ID!
-  user: User!
+  notificationUser: User!
   title: String!
   message: String!
   type: NotificationType!
@@ -2000,6 +2052,7 @@ type Notification {
   relatedEntityType: String
   isRead: Boolean!
   createdAt: DateTime!
+  updatedAt: DateTime
 }
 
 enum NotificationType {
@@ -2133,7 +2186,6 @@ input CreateUserInput {
   firstName: String!
   lastName: String!
   role: UserRole!
-  password: String!
 }
 
 input UpdateUserInput {
@@ -2198,7 +2250,6 @@ input UpdateLocationInput {
 input CreateComplianceCheckInput {
   licenseId: ID!
   title: String!
-  description: String!
   dueDate: DateTime!
   status: ComplianceStatus!
   assignedToId: ID
@@ -2207,7 +2258,6 @@ input CreateComplianceCheckInput {
 
 input UpdateComplianceCheckInput {
   title: String
-  description: String
   dueDate: DateTime
   status: ComplianceStatus
   assignedToId: ID
@@ -2242,6 +2292,7 @@ type Subscription {
   licenseStatusChanged(businessId: ID): License!
   complianceStatusChanged(businessId: ID): ComplianceCheck!
 }
+
 `, BuiltIn: false},
 }
 var parsedSchema = gqlparser.MustLoadSchema(sources...)
@@ -3269,18 +3320,18 @@ func (ec *executionContext) field_Query_licenses_args(ctx context.Context, rawAr
 func (ec *executionContext) field_Query_licenses_argsFilter(
 	ctx context.Context,
 	rawArgs map[string]any,
-) (*model.LicenseFilter, error) {
+) (*model.License, error) {
 	if _, ok := rawArgs["filter"]; !ok {
-		var zeroVal *model.LicenseFilter
+		var zeroVal *model.License
 		return zeroVal, nil
 	}
 
 	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("filter"))
 	if tmp, ok := rawArgs["filter"]; ok {
-		return ec.unmarshalOLicenseFilter2ᚖbudsafeᚋbackendᚋgraphᚋmodelᚐLicenseFilter(ctx, tmp)
+		return ec.unmarshalOLicenseFilter2ᚖbudsafeᚋbackendᚋgraphᚋmodelᚐLicense(ctx, tmp)
 	}
 
-	var zeroVal *model.LicenseFilter
+	var zeroVal *model.License
 	return zeroVal, nil
 }
 
@@ -3783,6 +3834,8 @@ func (ec *executionContext) fieldContext_Business_licenses(_ context.Context, fi
 				return ec.fieldContext_License_complianceChecks(ctx, field)
 			case "documents":
 				return ec.fieldContext_License_documents(ctx, field)
+			case "feeAmount":
+				return ec.fieldContext_License_feeAmount(ctx, field)
 			case "notes":
 				return ec.fieldContext_License_notes(ctx, field)
 			case "createdAt":
@@ -3861,8 +3914,8 @@ func (ec *executionContext) fieldContext_Business_locations(_ context.Context, f
 	return fc, nil
 }
 
-func (ec *executionContext) _Business_users(ctx context.Context, field graphql.CollectedField, obj *model.Business) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Business_users(ctx, field)
+func (ec *executionContext) _Business_ownerId(ctx context.Context, field graphql.CollectedField, obj *model.Business) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Business_ownerId(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -3875,46 +3928,31 @@ func (ec *executionContext) _Business_users(ctx context.Context, field graphql.C
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Users, nil
+		return obj.OwnerID, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
 		return graphql.Null
 	}
 	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
 		return graphql.Null
 	}
-	res := resTmp.([]*model.User)
+	res := resTmp.(string)
 	fc.Result = res
-	return ec.marshalOUser2ᚕᚖbudsafeᚋbackendᚋgraphᚋmodelᚐUserᚄ(ctx, field.Selections, res)
+	return ec.marshalNID2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Business_users(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Business_ownerId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Business",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_User_id(ctx, field)
-			case "email":
-				return ec.fieldContext_User_email(ctx, field)
-			case "firstName":
-				return ec.fieldContext_User_firstName(ctx, field)
-			case "lastName":
-				return ec.fieldContext_User_lastName(ctx, field)
-			case "role":
-				return ec.fieldContext_User_role(ctx, field)
-			case "businesses":
-				return ec.fieldContext_User_businesses(ctx, field)
-			case "createdAt":
-				return ec.fieldContext_User_createdAt(ctx, field)
-			case "updatedAt":
-				return ec.fieldContext_User_updatedAt(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type User", field.Name)
+			return nil, errors.New("field of type ID does not have child fields")
 		},
 	}
 	return fc, nil
@@ -4093,8 +4131,8 @@ func (ec *executionContext) fieldContext_ComplianceCheck_licenseId(_ context.Con
 	return fc, nil
 }
 
-func (ec *executionContext) _ComplianceCheck_license(ctx context.Context, field graphql.CollectedField, obj *model.ComplianceCheck) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_ComplianceCheck_license(ctx, field)
+func (ec *executionContext) _ComplianceCheck_complianceCheckLicense(ctx context.Context, field graphql.CollectedField, obj *model.ComplianceCheck) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ComplianceCheck_complianceCheckLicense(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -4107,7 +4145,7 @@ func (ec *executionContext) _ComplianceCheck_license(ctx context.Context, field 
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.License, nil
+		return ec.resolvers.ComplianceCheck().ComplianceCheckLicense(rctx, obj)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -4124,12 +4162,12 @@ func (ec *executionContext) _ComplianceCheck_license(ctx context.Context, field 
 	return ec.marshalNLicense2ᚖbudsafeᚋbackendᚋgraphᚋmodelᚐLicense(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_ComplianceCheck_license(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_ComplianceCheck_complianceCheckLicense(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "ComplianceCheck",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "id":
@@ -4162,6 +4200,8 @@ func (ec *executionContext) fieldContext_ComplianceCheck_license(_ context.Conte
 				return ec.fieldContext_License_complianceChecks(ctx, field)
 			case "documents":
 				return ec.fieldContext_License_documents(ctx, field)
+			case "feeAmount":
+				return ec.fieldContext_License_feeAmount(ctx, field)
 			case "notes":
 				return ec.fieldContext_License_notes(ctx, field)
 			case "createdAt":
@@ -4219,50 +4259,6 @@ func (ec *executionContext) fieldContext_ComplianceCheck_title(_ context.Context
 	return fc, nil
 }
 
-func (ec *executionContext) _ComplianceCheck_description(ctx context.Context, field graphql.CollectedField, obj *model.ComplianceCheck) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_ComplianceCheck_description(ctx, field)
-	if err != nil {
-		return graphql.Null
-	}
-	ctx = graphql.WithFieldContext(ctx, fc)
-	defer func() {
-		if r := recover(); r != nil {
-			ec.Error(ctx, ec.Recover(ctx, r))
-			ret = graphql.Null
-		}
-	}()
-	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
-		ctx = rctx // use context from middleware stack in children
-		return obj.Description, nil
-	})
-	if err != nil {
-		ec.Error(ctx, err)
-		return graphql.Null
-	}
-	if resTmp == nil {
-		if !graphql.HasFieldError(ctx, fc) {
-			ec.Errorf(ctx, "must not be null")
-		}
-		return graphql.Null
-	}
-	res := resTmp.(string)
-	fc.Result = res
-	return ec.marshalNString2string(ctx, field.Selections, res)
-}
-
-func (ec *executionContext) fieldContext_ComplianceCheck_description(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	fc = &graphql.FieldContext{
-		Object:     "ComplianceCheck",
-		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
-		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type String does not have child fields")
-		},
-	}
-	return fc, nil
-}
-
 func (ec *executionContext) _ComplianceCheck_dueDate(ctx context.Context, field graphql.CollectedField, obj *model.ComplianceCheck) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_ComplianceCheck_dueDate(ctx, field)
 	if err != nil {
@@ -4295,6 +4291,47 @@ func (ec *executionContext) _ComplianceCheck_dueDate(ctx context.Context, field 
 }
 
 func (ec *executionContext) fieldContext_ComplianceCheck_dueDate(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ComplianceCheck",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type DateTime does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ComplianceCheck_checkedAt(ctx context.Context, field graphql.CollectedField, obj *model.ComplianceCheck) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ComplianceCheck_checkedAt(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.CheckedAt, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalODateTime2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ComplianceCheck_checkedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "ComplianceCheck",
 		Field:      field,
@@ -4351,8 +4388,8 @@ func (ec *executionContext) fieldContext_ComplianceCheck_status(_ context.Contex
 	return fc, nil
 }
 
-func (ec *executionContext) _ComplianceCheck_assignedTo(ctx context.Context, field graphql.CollectedField, obj *model.ComplianceCheck) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_ComplianceCheck_assignedTo(ctx, field)
+func (ec *executionContext) _ComplianceCheck_userId(ctx context.Context, field graphql.CollectedField, obj *model.ComplianceCheck) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ComplianceCheck_userId(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -4365,7 +4402,48 @@ func (ec *executionContext) _ComplianceCheck_assignedTo(ctx context.Context, fie
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.AssignedTo, nil
+		return obj.UserID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalOID2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_ComplianceCheck_userId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ComplianceCheck",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _ComplianceCheck_complianceCheckUser(ctx context.Context, field graphql.CollectedField, obj *model.ComplianceCheck) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_ComplianceCheck_complianceCheckUser(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return ec.resolvers.ComplianceCheck().ComplianceCheckUser(rctx, obj)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -4379,16 +4457,18 @@ func (ec *executionContext) _ComplianceCheck_assignedTo(ctx context.Context, fie
 	return ec.marshalOUser2ᚖbudsafeᚋbackendᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_ComplianceCheck_assignedTo(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_ComplianceCheck_complianceCheckUser(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "ComplianceCheck",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_User_id(ctx, field)
+			case "firebaseUid":
+				return ec.fieldContext_User_firebaseUid(ctx, field)
 			case "email":
 				return ec.fieldContext_User_email(ctx, field)
 			case "firstName":
@@ -5063,8 +5143,8 @@ func (ec *executionContext) fieldContext_DashboardSummary_recentNotifications(_ 
 				return ec.fieldContext_Notification_id(ctx, field)
 			case "userId":
 				return ec.fieldContext_Notification_userId(ctx, field)
-			case "user":
-				return ec.fieldContext_Notification_user(ctx, field)
+			case "notificationUser":
+				return ec.fieldContext_Notification_notificationUser(ctx, field)
 			case "title":
 				return ec.fieldContext_Notification_title(ctx, field)
 			case "message":
@@ -5079,6 +5159,8 @@ func (ec *executionContext) fieldContext_DashboardSummary_recentNotifications(_ 
 				return ec.fieldContext_Notification_isRead(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Notification_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Notification_updatedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Notification", field.Name)
 		},
@@ -5344,6 +5426,8 @@ func (ec *executionContext) fieldContext_Document_uploadedBy(_ context.Context, 
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_User_id(ctx, field)
+			case "firebaseUid":
+				return ec.fieldContext_User_firebaseUid(ctx, field)
 			case "email":
 				return ec.fieldContext_User_email(ctx, field)
 			case "firstName":
@@ -5472,6 +5556,8 @@ func (ec *executionContext) fieldContext_Document_license(_ context.Context, fie
 				return ec.fieldContext_License_complianceChecks(ctx, field)
 			case "documents":
 				return ec.fieldContext_License_documents(ctx, field)
+			case "feeAmount":
+				return ec.fieldContext_License_feeAmount(ctx, field)
 			case "notes":
 				return ec.fieldContext_License_notes(ctx, field)
 			case "createdAt":
@@ -6266,8 +6352,8 @@ func (ec *executionContext) fieldContext_License_business(_ context.Context, fie
 				return ec.fieldContext_Business_licenses(ctx, field)
 			case "locations":
 				return ec.fieldContext_Business_locations(ctx, field)
-			case "users":
-				return ec.fieldContext_Business_users(ctx, field)
+			case "ownerId":
+				return ec.fieldContext_Business_ownerId(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Business_createdAt(ctx, field)
 			case "updatedAt":
@@ -6816,18 +6902,20 @@ func (ec *executionContext) fieldContext_License_complianceChecks(_ context.Cont
 				return ec.fieldContext_ComplianceCheck_id(ctx, field)
 			case "licenseId":
 				return ec.fieldContext_ComplianceCheck_licenseId(ctx, field)
-			case "license":
-				return ec.fieldContext_ComplianceCheck_license(ctx, field)
+			case "complianceCheckLicense":
+				return ec.fieldContext_ComplianceCheck_complianceCheckLicense(ctx, field)
 			case "title":
 				return ec.fieldContext_ComplianceCheck_title(ctx, field)
-			case "description":
-				return ec.fieldContext_ComplianceCheck_description(ctx, field)
 			case "dueDate":
 				return ec.fieldContext_ComplianceCheck_dueDate(ctx, field)
+			case "checkedAt":
+				return ec.fieldContext_ComplianceCheck_checkedAt(ctx, field)
 			case "status":
 				return ec.fieldContext_ComplianceCheck_status(ctx, field)
-			case "assignedTo":
-				return ec.fieldContext_ComplianceCheck_assignedTo(ctx, field)
+			case "userId":
+				return ec.fieldContext_ComplianceCheck_userId(ctx, field)
+			case "complianceCheckUser":
+				return ec.fieldContext_ComplianceCheck_complianceCheckUser(ctx, field)
 			case "notes":
 				return ec.fieldContext_ComplianceCheck_notes(ctx, field)
 			case "createdAt":
@@ -6903,6 +6991,50 @@ func (ec *executionContext) fieldContext_License_documents(_ context.Context, fi
 				return ec.fieldContext_Document_updatedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Document", field.Name)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _License_feeAmount(ctx context.Context, field graphql.CollectedField, obj *model.License) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_License_feeAmount(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.FeeAmount, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*float64)
+	fc.Result = res
+	return ec.marshalNFloat2ᚖfloat64(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_License_feeAmount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "License",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type Float does not have child fields")
 		},
 	}
 	return fc, nil
@@ -7173,8 +7305,8 @@ func (ec *executionContext) fieldContext_Location_business(_ context.Context, fi
 				return ec.fieldContext_Business_licenses(ctx, field)
 			case "locations":
 				return ec.fieldContext_Business_locations(ctx, field)
-			case "users":
-				return ec.fieldContext_Business_users(ctx, field)
+			case "ownerId":
+				return ec.fieldContext_Business_ownerId(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Business_createdAt(ctx, field)
 			case "updatedAt":
@@ -7472,6 +7604,8 @@ func (ec *executionContext) fieldContext_Location_licenses(_ context.Context, fi
 				return ec.fieldContext_License_complianceChecks(ctx, field)
 			case "documents":
 				return ec.fieldContext_License_documents(ctx, field)
+			case "feeAmount":
+				return ec.fieldContext_License_feeAmount(ctx, field)
 			case "notes":
 				return ec.fieldContext_License_notes(ctx, field)
 			case "createdAt":
@@ -7611,6 +7745,8 @@ func (ec *executionContext) fieldContext_Mutation_createUser(ctx context.Context
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_User_id(ctx, field)
+			case "firebaseUid":
+				return ec.fieldContext_User_firebaseUid(ctx, field)
 			case "email":
 				return ec.fieldContext_User_email(ctx, field)
 			case "firstName":
@@ -7684,6 +7820,8 @@ func (ec *executionContext) fieldContext_Mutation_updateUser(ctx context.Context
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_User_id(ctx, field)
+			case "firebaseUid":
+				return ec.fieldContext_User_firebaseUid(ctx, field)
 			case "email":
 				return ec.fieldContext_User_email(ctx, field)
 			case "firstName":
@@ -7822,8 +7960,8 @@ func (ec *executionContext) fieldContext_Mutation_createBusiness(ctx context.Con
 				return ec.fieldContext_Business_licenses(ctx, field)
 			case "locations":
 				return ec.fieldContext_Business_locations(ctx, field)
-			case "users":
-				return ec.fieldContext_Business_users(ctx, field)
+			case "ownerId":
+				return ec.fieldContext_Business_ownerId(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Business_createdAt(ctx, field)
 			case "updatedAt":
@@ -7897,8 +8035,8 @@ func (ec *executionContext) fieldContext_Mutation_updateBusiness(ctx context.Con
 				return ec.fieldContext_Business_licenses(ctx, field)
 			case "locations":
 				return ec.fieldContext_Business_locations(ctx, field)
-			case "users":
-				return ec.fieldContext_Business_users(ctx, field)
+			case "ownerId":
+				return ec.fieldContext_Business_ownerId(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Business_createdAt(ctx, field)
 			case "updatedAt":
@@ -8045,6 +8183,8 @@ func (ec *executionContext) fieldContext_Mutation_createLicense(ctx context.Cont
 				return ec.fieldContext_License_complianceChecks(ctx, field)
 			case "documents":
 				return ec.fieldContext_License_documents(ctx, field)
+			case "feeAmount":
+				return ec.fieldContext_License_feeAmount(ctx, field)
 			case "notes":
 				return ec.fieldContext_License_notes(ctx, field)
 			case "createdAt":
@@ -8138,6 +8278,8 @@ func (ec *executionContext) fieldContext_Mutation_updateLicense(ctx context.Cont
 				return ec.fieldContext_License_complianceChecks(ctx, field)
 			case "documents":
 				return ec.fieldContext_License_documents(ctx, field)
+			case "feeAmount":
+				return ec.fieldContext_License_feeAmount(ctx, field)
 			case "notes":
 				return ec.fieldContext_License_notes(ctx, field)
 			case "createdAt":
@@ -8473,18 +8615,20 @@ func (ec *executionContext) fieldContext_Mutation_createComplianceCheck(ctx cont
 				return ec.fieldContext_ComplianceCheck_id(ctx, field)
 			case "licenseId":
 				return ec.fieldContext_ComplianceCheck_licenseId(ctx, field)
-			case "license":
-				return ec.fieldContext_ComplianceCheck_license(ctx, field)
+			case "complianceCheckLicense":
+				return ec.fieldContext_ComplianceCheck_complianceCheckLicense(ctx, field)
 			case "title":
 				return ec.fieldContext_ComplianceCheck_title(ctx, field)
-			case "description":
-				return ec.fieldContext_ComplianceCheck_description(ctx, field)
 			case "dueDate":
 				return ec.fieldContext_ComplianceCheck_dueDate(ctx, field)
+			case "checkedAt":
+				return ec.fieldContext_ComplianceCheck_checkedAt(ctx, field)
 			case "status":
 				return ec.fieldContext_ComplianceCheck_status(ctx, field)
-			case "assignedTo":
-				return ec.fieldContext_ComplianceCheck_assignedTo(ctx, field)
+			case "userId":
+				return ec.fieldContext_ComplianceCheck_userId(ctx, field)
+			case "complianceCheckUser":
+				return ec.fieldContext_ComplianceCheck_complianceCheckUser(ctx, field)
 			case "notes":
 				return ec.fieldContext_ComplianceCheck_notes(ctx, field)
 			case "createdAt":
@@ -8552,18 +8696,20 @@ func (ec *executionContext) fieldContext_Mutation_updateComplianceCheck(ctx cont
 				return ec.fieldContext_ComplianceCheck_id(ctx, field)
 			case "licenseId":
 				return ec.fieldContext_ComplianceCheck_licenseId(ctx, field)
-			case "license":
-				return ec.fieldContext_ComplianceCheck_license(ctx, field)
+			case "complianceCheckLicense":
+				return ec.fieldContext_ComplianceCheck_complianceCheckLicense(ctx, field)
 			case "title":
 				return ec.fieldContext_ComplianceCheck_title(ctx, field)
-			case "description":
-				return ec.fieldContext_ComplianceCheck_description(ctx, field)
 			case "dueDate":
 				return ec.fieldContext_ComplianceCheck_dueDate(ctx, field)
+			case "checkedAt":
+				return ec.fieldContext_ComplianceCheck_checkedAt(ctx, field)
 			case "status":
 				return ec.fieldContext_ComplianceCheck_status(ctx, field)
-			case "assignedTo":
-				return ec.fieldContext_ComplianceCheck_assignedTo(ctx, field)
+			case "userId":
+				return ec.fieldContext_ComplianceCheck_userId(ctx, field)
+			case "complianceCheckUser":
+				return ec.fieldContext_ComplianceCheck_complianceCheckUser(ctx, field)
 			case "notes":
 				return ec.fieldContext_ComplianceCheck_notes(ctx, field)
 			case "createdAt":
@@ -9047,8 +9193,8 @@ func (ec *executionContext) fieldContext_Mutation_markNotificationAsRead(ctx con
 				return ec.fieldContext_Notification_id(ctx, field)
 			case "userId":
 				return ec.fieldContext_Notification_userId(ctx, field)
-			case "user":
-				return ec.fieldContext_Notification_user(ctx, field)
+			case "notificationUser":
+				return ec.fieldContext_Notification_notificationUser(ctx, field)
 			case "title":
 				return ec.fieldContext_Notification_title(ctx, field)
 			case "message":
@@ -9063,6 +9209,8 @@ func (ec *executionContext) fieldContext_Mutation_markNotificationAsRead(ctx con
 				return ec.fieldContext_Notification_isRead(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Notification_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Notification_updatedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Notification", field.Name)
 		},
@@ -9224,8 +9372,8 @@ func (ec *executionContext) fieldContext_Notification_userId(_ context.Context, 
 	return fc, nil
 }
 
-func (ec *executionContext) _Notification_user(ctx context.Context, field graphql.CollectedField, obj *model.Notification) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Notification_user(ctx, field)
+func (ec *executionContext) _Notification_notificationUser(ctx context.Context, field graphql.CollectedField, obj *model.Notification) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Notification_notificationUser(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -9238,7 +9386,7 @@ func (ec *executionContext) _Notification_user(ctx context.Context, field graphq
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.User, nil
+		return ec.resolvers.Notification().NotificationUser(rctx, obj)
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -9255,16 +9403,18 @@ func (ec *executionContext) _Notification_user(ctx context.Context, field graphq
 	return ec.marshalNUser2ᚖbudsafeᚋbackendᚋgraphᚋmodelᚐUser(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Notification_user(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Notification_notificationUser(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Notification",
 		Field:      field,
-		IsMethod:   false,
-		IsResolver: false,
+		IsMethod:   true,
+		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_User_id(ctx, field)
+			case "firebaseUid":
+				return ec.fieldContext_User_firebaseUid(ctx, field)
 			case "email":
 				return ec.fieldContext_User_email(ctx, field)
 			case "firstName":
@@ -9588,6 +9738,47 @@ func (ec *executionContext) fieldContext_Notification_createdAt(_ context.Contex
 	return fc, nil
 }
 
+func (ec *executionContext) _Notification_updatedAt(ctx context.Context, field graphql.CollectedField, obj *model.Notification) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Notification_updatedAt(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.UpdatedAt, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		return graphql.Null
+	}
+	res := resTmp.(string)
+	fc.Result = res
+	return ec.marshalODateTime2string(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_Notification_updatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Notification",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type DateTime does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Query_me(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	fc, err := ec.fieldContext_Query_me(ctx, field)
 	if err != nil {
@@ -9626,6 +9817,8 @@ func (ec *executionContext) fieldContext_Query_me(_ context.Context, field graph
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_User_id(ctx, field)
+			case "firebaseUid":
+				return ec.fieldContext_User_firebaseUid(ctx, field)
 			case "email":
 				return ec.fieldContext_User_email(ctx, field)
 			case "firstName":
@@ -9685,6 +9878,8 @@ func (ec *executionContext) fieldContext_Query_user(ctx context.Context, field g
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_User_id(ctx, field)
+			case "firebaseUid":
+				return ec.fieldContext_User_firebaseUid(ctx, field)
 			case "email":
 				return ec.fieldContext_User_email(ctx, field)
 			case "firstName":
@@ -9758,6 +9953,8 @@ func (ec *executionContext) fieldContext_Query_users(_ context.Context, field gr
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_User_id(ctx, field)
+			case "firebaseUid":
+				return ec.fieldContext_User_firebaseUid(ctx, field)
 			case "email":
 				return ec.fieldContext_User_email(ctx, field)
 			case "firstName":
@@ -9827,8 +10024,8 @@ func (ec *executionContext) fieldContext_Query_business(ctx context.Context, fie
 				return ec.fieldContext_Business_licenses(ctx, field)
 			case "locations":
 				return ec.fieldContext_Business_locations(ctx, field)
-			case "users":
-				return ec.fieldContext_Business_users(ctx, field)
+			case "ownerId":
+				return ec.fieldContext_Business_ownerId(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Business_createdAt(ctx, field)
 			case "updatedAt":
@@ -9902,8 +10099,8 @@ func (ec *executionContext) fieldContext_Query_businesses(ctx context.Context, f
 				return ec.fieldContext_Business_licenses(ctx, field)
 			case "locations":
 				return ec.fieldContext_Business_locations(ctx, field)
-			case "users":
-				return ec.fieldContext_Business_users(ctx, field)
+			case "ownerId":
+				return ec.fieldContext_Business_ownerId(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Business_createdAt(ctx, field)
 			case "updatedAt":
@@ -9992,6 +10189,8 @@ func (ec *executionContext) fieldContext_Query_license(ctx context.Context, fiel
 				return ec.fieldContext_License_complianceChecks(ctx, field)
 			case "documents":
 				return ec.fieldContext_License_documents(ctx, field)
+			case "feeAmount":
+				return ec.fieldContext_License_feeAmount(ctx, field)
 			case "notes":
 				return ec.fieldContext_License_notes(ctx, field)
 			case "createdAt":
@@ -10030,7 +10229,7 @@ func (ec *executionContext) _Query_licenses(ctx context.Context, field graphql.C
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().Licenses(rctx, fc.Args["filter"].(*model.LicenseFilter))
+		return ec.resolvers.Query().Licenses(rctx, fc.Args["filter"].(*model.License))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -10085,6 +10284,8 @@ func (ec *executionContext) fieldContext_Query_licenses(ctx context.Context, fie
 				return ec.fieldContext_License_complianceChecks(ctx, field)
 			case "documents":
 				return ec.fieldContext_License_documents(ctx, field)
+			case "feeAmount":
+				return ec.fieldContext_License_feeAmount(ctx, field)
 			case "notes":
 				return ec.fieldContext_License_notes(ctx, field)
 			case "createdAt":
@@ -10178,6 +10379,8 @@ func (ec *executionContext) fieldContext_Query_expiringLicenses(ctx context.Cont
 				return ec.fieldContext_License_complianceChecks(ctx, field)
 			case "documents":
 				return ec.fieldContext_License_documents(ctx, field)
+			case "feeAmount":
+				return ec.fieldContext_License_feeAmount(ctx, field)
 			case "notes":
 				return ec.fieldContext_License_notes(ctx, field)
 			case "createdAt":
@@ -10385,18 +10588,20 @@ func (ec *executionContext) fieldContext_Query_complianceChecks(ctx context.Cont
 				return ec.fieldContext_ComplianceCheck_id(ctx, field)
 			case "licenseId":
 				return ec.fieldContext_ComplianceCheck_licenseId(ctx, field)
-			case "license":
-				return ec.fieldContext_ComplianceCheck_license(ctx, field)
+			case "complianceCheckLicense":
+				return ec.fieldContext_ComplianceCheck_complianceCheckLicense(ctx, field)
 			case "title":
 				return ec.fieldContext_ComplianceCheck_title(ctx, field)
-			case "description":
-				return ec.fieldContext_ComplianceCheck_description(ctx, field)
 			case "dueDate":
 				return ec.fieldContext_ComplianceCheck_dueDate(ctx, field)
+			case "checkedAt":
+				return ec.fieldContext_ComplianceCheck_checkedAt(ctx, field)
 			case "status":
 				return ec.fieldContext_ComplianceCheck_status(ctx, field)
-			case "assignedTo":
-				return ec.fieldContext_ComplianceCheck_assignedTo(ctx, field)
+			case "userId":
+				return ec.fieldContext_ComplianceCheck_userId(ctx, field)
+			case "complianceCheckUser":
+				return ec.fieldContext_ComplianceCheck_complianceCheckUser(ctx, field)
 			case "notes":
 				return ec.fieldContext_ComplianceCheck_notes(ctx, field)
 			case "createdAt":
@@ -10533,8 +10738,8 @@ func (ec *executionContext) fieldContext_Query_notifications(ctx context.Context
 				return ec.fieldContext_Notification_id(ctx, field)
 			case "userId":
 				return ec.fieldContext_Notification_userId(ctx, field)
-			case "user":
-				return ec.fieldContext_Notification_user(ctx, field)
+			case "notificationUser":
+				return ec.fieldContext_Notification_notificationUser(ctx, field)
 			case "title":
 				return ec.fieldContext_Notification_title(ctx, field)
 			case "message":
@@ -10549,6 +10754,8 @@ func (ec *executionContext) fieldContext_Query_notifications(ctx context.Context
 				return ec.fieldContext_Notification_isRead(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Notification_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Notification_updatedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Notification", field.Name)
 		},
@@ -11164,9 +11371,9 @@ func (ec *executionContext) _Regulation_requirements(ctx context.Context, field 
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(*string)
+	res := resTmp.(map[string]any)
 	fc.Result = res
-	return ec.marshalOJSON2ᚖstring(ctx, field.Selections, res)
+	return ec.marshalOJSON2map(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Regulation_requirements(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -11465,6 +11672,8 @@ func (ec *executionContext) fieldContext_RenewalRequirement_license(_ context.Co
 				return ec.fieldContext_License_complianceChecks(ctx, field)
 			case "documents":
 				return ec.fieldContext_License_documents(ctx, field)
+			case "feeAmount":
+				return ec.fieldContext_License_feeAmount(ctx, field)
 			case "notes":
 				return ec.fieldContext_License_notes(ctx, field)
 			case "createdAt":
@@ -11816,8 +12025,8 @@ func (ec *executionContext) fieldContext_Subscription_notificationAdded(ctx cont
 				return ec.fieldContext_Notification_id(ctx, field)
 			case "userId":
 				return ec.fieldContext_Notification_userId(ctx, field)
-			case "user":
-				return ec.fieldContext_Notification_user(ctx, field)
+			case "notificationUser":
+				return ec.fieldContext_Notification_notificationUser(ctx, field)
 			case "title":
 				return ec.fieldContext_Notification_title(ctx, field)
 			case "message":
@@ -11832,6 +12041,8 @@ func (ec *executionContext) fieldContext_Subscription_notificationAdded(ctx cont
 				return ec.fieldContext_Notification_isRead(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Notification_createdAt(ctx, field)
+			case "updatedAt":
+				return ec.fieldContext_Notification_updatedAt(ctx, field)
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Notification", field.Name)
 		},
@@ -11933,6 +12144,8 @@ func (ec *executionContext) fieldContext_Subscription_licenseStatusChanged(ctx c
 				return ec.fieldContext_License_complianceChecks(ctx, field)
 			case "documents":
 				return ec.fieldContext_License_documents(ctx, field)
+			case "feeAmount":
+				return ec.fieldContext_License_feeAmount(ctx, field)
 			case "notes":
 				return ec.fieldContext_License_notes(ctx, field)
 			case "createdAt":
@@ -12014,18 +12227,20 @@ func (ec *executionContext) fieldContext_Subscription_complianceStatusChanged(ct
 				return ec.fieldContext_ComplianceCheck_id(ctx, field)
 			case "licenseId":
 				return ec.fieldContext_ComplianceCheck_licenseId(ctx, field)
-			case "license":
-				return ec.fieldContext_ComplianceCheck_license(ctx, field)
+			case "complianceCheckLicense":
+				return ec.fieldContext_ComplianceCheck_complianceCheckLicense(ctx, field)
 			case "title":
 				return ec.fieldContext_ComplianceCheck_title(ctx, field)
-			case "description":
-				return ec.fieldContext_ComplianceCheck_description(ctx, field)
 			case "dueDate":
 				return ec.fieldContext_ComplianceCheck_dueDate(ctx, field)
+			case "checkedAt":
+				return ec.fieldContext_ComplianceCheck_checkedAt(ctx, field)
 			case "status":
 				return ec.fieldContext_ComplianceCheck_status(ctx, field)
-			case "assignedTo":
-				return ec.fieldContext_ComplianceCheck_assignedTo(ctx, field)
+			case "userId":
+				return ec.fieldContext_ComplianceCheck_userId(ctx, field)
+			case "complianceCheckUser":
+				return ec.fieldContext_ComplianceCheck_complianceCheckUser(ctx, field)
 			case "notes":
 				return ec.fieldContext_ComplianceCheck_notes(ctx, field)
 			case "createdAt":
@@ -12089,6 +12304,50 @@ func (ec *executionContext) fieldContext_User_id(_ context.Context, field graphq
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return nil, errors.New("field of type ID does not have child fields")
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _User_firebaseUid(ctx context.Context, field graphql.CollectedField, obj *model.User) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_User_firebaseUid(ctx, field)
+	if err != nil {
+		return graphql.Null
+	}
+	ctx = graphql.WithFieldContext(ctx, fc)
+	defer func() {
+		if r := recover(); r != nil {
+			ec.Error(ctx, ec.Recover(ctx, r))
+			ret = graphql.Null
+		}
+	}()
+	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
+		ctx = rctx // use context from middleware stack in children
+		return obj.FirebaseUID, nil
+	})
+	if err != nil {
+		ec.Error(ctx, err)
+		return graphql.Null
+	}
+	if resTmp == nil {
+		if !graphql.HasFieldError(ctx, fc) {
+			ec.Errorf(ctx, "must not be null")
+		}
+		return graphql.Null
+	}
+	res := resTmp.(*string)
+	fc.Result = res
+	return ec.marshalNString2ᚖstring(ctx, field.Selections, res)
+}
+
+func (ec *executionContext) fieldContext_User_firebaseUid(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "User",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return nil, errors.New("field of type String does not have child fields")
 		},
 	}
 	return fc, nil
@@ -12312,8 +12571,8 @@ func (ec *executionContext) fieldContext_User_businesses(_ context.Context, fiel
 				return ec.fieldContext_Business_licenses(ctx, field)
 			case "locations":
 				return ec.fieldContext_Business_locations(ctx, field)
-			case "users":
-				return ec.fieldContext_Business_users(ctx, field)
+			case "ownerId":
+				return ec.fieldContext_Business_ownerId(ctx, field)
 			case "createdAt":
 				return ec.fieldContext_Business_createdAt(ctx, field)
 			case "updatedAt":
@@ -14450,7 +14709,7 @@ func (ec *executionContext) unmarshalInputCreateComplianceCheckInput(ctx context
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"licenseId", "title", "description", "dueDate", "status", "assignedToId", "notes"}
+	fieldsInOrder := [...]string{"licenseId", "title", "dueDate", "status", "assignedToId", "notes"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -14471,13 +14730,6 @@ func (ec *executionContext) unmarshalInputCreateComplianceCheckInput(ctx context
 				return it, err
 			}
 			it.Title = data
-		case "description":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("description"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Description = data
 		case "dueDate":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("dueDate"))
 			data, err := ec.unmarshalNDateTime2string(ctx, v)
@@ -14774,7 +15026,7 @@ func (ec *executionContext) unmarshalInputCreateUserInput(ctx context.Context, o
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"email", "firstName", "lastName", "role", "password"}
+	fieldsInOrder := [...]string{"email", "firstName", "lastName", "role"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -14809,21 +15061,14 @@ func (ec *executionContext) unmarshalInputCreateUserInput(ctx context.Context, o
 				return it, err
 			}
 			it.Role = data
-		case "password":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("password"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Password = data
 		}
 	}
 
 	return it, nil
 }
 
-func (ec *executionContext) unmarshalInputLicenseFilter(ctx context.Context, obj any) (model.LicenseFilter, error) {
-	var it model.LicenseFilter
+func (ec *executionContext) unmarshalInputLicenseFilter(ctx context.Context, obj any) (model.License, error) {
+	var it model.License
 	asMap := map[string]any{}
 	for k, v := range obj.(map[string]any) {
 		asMap[k] = v
@@ -14838,28 +15083,28 @@ func (ec *executionContext) unmarshalInputLicenseFilter(ctx context.Context, obj
 		switch k {
 		case "businessId":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("businessId"))
-			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			data, err := ec.unmarshalOID2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
 			it.BusinessID = data
 		case "jurisdictionId":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("jurisdictionId"))
-			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			data, err := ec.unmarshalOID2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
 			it.JurisdictionID = data
 		case "licenseType":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("licenseType"))
-			data, err := ec.unmarshalOLicenseType2ᚖbudsafeᚋbackendᚋgraphᚋmodelᚐLicenseType(ctx, v)
+			data, err := ec.unmarshalOLicenseType2budsafeᚋbackendᚋgraphᚋmodelᚐLicenseType(ctx, v)
 			if err != nil {
 				return it, err
 			}
 			it.LicenseType = data
 		case "status":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("status"))
-			data, err := ec.unmarshalOLicenseStatus2ᚖbudsafeᚋbackendᚋgraphᚋmodelᚐLicenseStatus(ctx, v)
+			data, err := ec.unmarshalOLicenseStatus2budsafeᚋbackendᚋgraphᚋmodelᚐLicenseStatus(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -14870,7 +15115,9 @@ func (ec *executionContext) unmarshalInputLicenseFilter(ctx context.Context, obj
 			if err != nil {
 				return it, err
 			}
-			it.ExpiringBefore = data
+			if err = ec.resolvers.LicenseFilter().ExpiringBefore(ctx, &it, data); err != nil {
+				return it, err
+			}
 		}
 	}
 
@@ -14925,7 +15172,7 @@ func (ec *executionContext) unmarshalInputUpdateComplianceCheckInput(ctx context
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"title", "description", "dueDate", "status", "assignedToId", "notes"}
+	fieldsInOrder := [...]string{"title", "dueDate", "status", "assignedToId", "notes"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -14939,13 +15186,6 @@ func (ec *executionContext) unmarshalInputUpdateComplianceCheckInput(ctx context
 				return it, err
 			}
 			it.Title = data
-		case "description":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("description"))
-			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Description = data
 		case "dueDate":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("dueDate"))
 			data, err := ec.unmarshalODateTime2ᚖstring(ctx, v)
@@ -15240,8 +15480,11 @@ func (ec *executionContext) _Business(ctx context.Context, sel ast.SelectionSet,
 			out.Values[i] = ec._Business_licenses(ctx, field, obj)
 		case "locations":
 			out.Values[i] = ec._Business_locations(ctx, field, obj)
-		case "users":
-			out.Values[i] = ec._Business_users(ctx, field, obj)
+		case "ownerId":
+			out.Values[i] = ec._Business_ownerId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "createdAt":
 			out.Values[i] = ec._Business_createdAt(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -15286,46 +15529,107 @@ func (ec *executionContext) _ComplianceCheck(ctx context.Context, sel ast.Select
 		case "id":
 			out.Values[i] = ec._ComplianceCheck_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "licenseId":
 			out.Values[i] = ec._ComplianceCheck_licenseId(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
-		case "license":
-			out.Values[i] = ec._ComplianceCheck_license(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
+		case "complianceCheckLicense":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._ComplianceCheck_complianceCheckLicense(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
 			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "title":
 			out.Values[i] = ec._ComplianceCheck_title(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
-			}
-		case "description":
-			out.Values[i] = ec._ComplianceCheck_description(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "dueDate":
 			out.Values[i] = ec._ComplianceCheck_dueDate(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "checkedAt":
+			out.Values[i] = ec._ComplianceCheck_checkedAt(ctx, field, obj)
 		case "status":
 			out.Values[i] = ec._ComplianceCheck_status(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
-		case "assignedTo":
-			out.Values[i] = ec._ComplianceCheck_assignedTo(ctx, field, obj)
+		case "userId":
+			out.Values[i] = ec._ComplianceCheck_userId(ctx, field, obj)
+		case "complianceCheckUser":
+			field := field
+
+			innerFunc := func(ctx context.Context, _ *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._ComplianceCheck_complianceCheckUser(ctx, field, obj)
+				return res
+			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "notes":
 			out.Values[i] = ec._ComplianceCheck_notes(ctx, field, obj)
 		case "createdAt":
 			out.Values[i] = ec._ComplianceCheck_createdAt(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "updatedAt":
 			out.Values[i] = ec._ComplianceCheck_updatedAt(ctx, field, obj)
@@ -15702,6 +16006,11 @@ func (ec *executionContext) _License(ctx context.Context, sel ast.SelectionSet, 
 			out.Values[i] = ec._License_complianceChecks(ctx, field, obj)
 		case "documents":
 			out.Values[i] = ec._License_documents(ctx, field, obj)
+		case "feeAmount":
+			out.Values[i] = ec._License_feeAmount(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "notes":
 			out.Values[i] = ec._License_notes(ctx, field, obj)
 		case "createdAt":
@@ -16027,32 +16336,63 @@ func (ec *executionContext) _Notification(ctx context.Context, sel ast.Selection
 		case "id":
 			out.Values[i] = ec._Notification_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "userId":
 			out.Values[i] = ec._Notification_userId(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
-		case "user":
-			out.Values[i] = ec._Notification_user(ctx, field, obj)
-			if out.Values[i] == graphql.Null {
-				out.Invalids++
+		case "notificationUser":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Notification_notificationUser(ctx, field, obj)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
 			}
+
+			if field.Deferrable != nil {
+				dfs, ok := deferred[field.Deferrable.Label]
+				di := 0
+				if ok {
+					dfs.AddField(field)
+					di = len(dfs.Values) - 1
+				} else {
+					dfs = graphql.NewFieldSet([]graphql.CollectedField{field})
+					deferred[field.Deferrable.Label] = dfs
+				}
+				dfs.Concurrently(di, func(ctx context.Context) graphql.Marshaler {
+					return innerFunc(ctx, dfs)
+				})
+
+				// don't run the out.Concurrently() call below
+				out.Values[i] = graphql.Null
+				continue
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
 		case "title":
 			out.Values[i] = ec._Notification_title(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "message":
 			out.Values[i] = ec._Notification_message(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "type":
 			out.Values[i] = ec._Notification_type(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "relatedEntityId":
 			out.Values[i] = ec._Notification_relatedEntityId(ctx, field, obj)
@@ -16061,13 +16401,15 @@ func (ec *executionContext) _Notification(ctx context.Context, sel ast.Selection
 		case "isRead":
 			out.Values[i] = ec._Notification_isRead(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
 		case "createdAt":
 			out.Values[i] = ec._Notification_createdAt(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
-				out.Invalids++
+				atomic.AddUint32(&out.Invalids, 1)
 			}
+		case "updatedAt":
+			out.Values[i] = ec._Notification_updatedAt(ctx, field, obj)
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -16643,6 +16985,11 @@ func (ec *executionContext) _User(ctx context.Context, sel ast.SelectionSet, obj
 			out.Values[i] = graphql.MarshalString("User")
 		case "id":
 			out.Values[i] = ec._User_id(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "firebaseUid":
+			out.Values[i] = ec._User_firebaseUid(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -17272,6 +17619,28 @@ func (ec *executionContext) marshalNDocument2ᚖbudsafeᚋbackendᚋgraphᚋmode
 	return ec._Document(ctx, sel, v)
 }
 
+func (ec *executionContext) unmarshalNFloat2ᚖfloat64(ctx context.Context, v any) (*float64, error) {
+	res, err := graphql.UnmarshalFloatContext(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNFloat2ᚖfloat64(ctx context.Context, sel ast.SelectionSet, v *float64) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	_ = sel
+	res := graphql.MarshalFloatContext(*v)
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+	}
+	return graphql.WrapContextMarshaler(ctx, res)
+}
+
 func (ec *executionContext) unmarshalNID2string(ctx context.Context, v any) (string, error) {
 	res, err := graphql.UnmarshalID(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -17606,6 +17975,28 @@ func (ec *executionContext) marshalNString2ᚕstringᚄ(ctx context.Context, sel
 	}
 
 	return ret
+}
+
+func (ec *executionContext) unmarshalNString2ᚖstring(ctx context.Context, v any) (*string, error) {
+	res, err := graphql.UnmarshalString(v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNString2ᚖstring(ctx context.Context, sel ast.SelectionSet, v *string) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	_ = sel
+	res := graphql.MarshalString(*v)
+	if res == graphql.Null {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
+		}
+	}
+	return res
 }
 
 func (ec *executionContext) unmarshalNUpdateBusinessInput2budsafeᚋbackendᚋgraphᚋmodelᚐUpdateBusinessInput(ctx context.Context, v any) (model.UpdateBusinessInput, error) {
@@ -18130,6 +18521,18 @@ func (ec *executionContext) marshalOComplianceStatus2ᚖbudsafeᚋbackendᚋgrap
 	return v
 }
 
+func (ec *executionContext) unmarshalODateTime2string(ctx context.Context, v any) (string, error) {
+	res, err := graphql.UnmarshalString(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalODateTime2string(ctx context.Context, sel ast.SelectionSet, v string) graphql.Marshaler {
+	_ = sel
+	_ = ctx
+	res := graphql.MarshalString(v)
+	return res
+}
+
 func (ec *executionContext) unmarshalODateTime2ᚖstring(ctx context.Context, v any) (*string, error) {
 	if v == nil {
 		return nil, nil
@@ -18195,6 +18598,18 @@ func (ec *executionContext) marshalODocument2ᚕᚖbudsafeᚋbackendᚋgraphᚋm
 	return ret
 }
 
+func (ec *executionContext) unmarshalOID2string(ctx context.Context, v any) (string, error) {
+	res, err := graphql.UnmarshalID(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOID2string(ctx context.Context, sel ast.SelectionSet, v string) graphql.Marshaler {
+	_ = sel
+	_ = ctx
+	res := graphql.MarshalID(v)
+	return res
+}
+
 func (ec *executionContext) unmarshalOID2ᚖstring(ctx context.Context, v any) (*string, error) {
 	if v == nil {
 		return nil, nil
@@ -18213,21 +18628,21 @@ func (ec *executionContext) marshalOID2ᚖstring(ctx context.Context, sel ast.Se
 	return res
 }
 
-func (ec *executionContext) unmarshalOJSON2ᚖstring(ctx context.Context, v any) (*string, error) {
+func (ec *executionContext) unmarshalOJSON2map(ctx context.Context, v any) (map[string]any, error) {
 	if v == nil {
 		return nil, nil
 	}
-	res, err := graphql.UnmarshalString(v)
-	return &res, graphql.ErrorOnPath(ctx, err)
+	res, err := graphql.UnmarshalMap(v)
+	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalOJSON2ᚖstring(ctx context.Context, sel ast.SelectionSet, v *string) graphql.Marshaler {
+func (ec *executionContext) marshalOJSON2map(ctx context.Context, sel ast.SelectionSet, v map[string]any) graphql.Marshaler {
 	if v == nil {
 		return graphql.Null
 	}
 	_ = sel
 	_ = ctx
-	res := graphql.MarshalString(*v)
+	res := graphql.MarshalMap(v)
 	return res
 }
 
@@ -18292,12 +18707,22 @@ func (ec *executionContext) marshalOLicense2ᚖbudsafeᚋbackendᚋgraphᚋmodel
 	return ec._License(ctx, sel, v)
 }
 
-func (ec *executionContext) unmarshalOLicenseFilter2ᚖbudsafeᚋbackendᚋgraphᚋmodelᚐLicenseFilter(ctx context.Context, v any) (*model.LicenseFilter, error) {
+func (ec *executionContext) unmarshalOLicenseFilter2ᚖbudsafeᚋbackendᚋgraphᚋmodelᚐLicense(ctx context.Context, v any) (*model.License, error) {
 	if v == nil {
 		return nil, nil
 	}
 	res, err := ec.unmarshalInputLicenseFilter(ctx, v)
 	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) unmarshalOLicenseStatus2budsafeᚋbackendᚋgraphᚋmodelᚐLicenseStatus(ctx context.Context, v any) (model.LicenseStatus, error) {
+	var res model.LicenseStatus
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOLicenseStatus2budsafeᚋbackendᚋgraphᚋmodelᚐLicenseStatus(ctx context.Context, sel ast.SelectionSet, v model.LicenseStatus) graphql.Marshaler {
+	return v
 }
 
 func (ec *executionContext) unmarshalOLicenseStatus2ᚖbudsafeᚋbackendᚋgraphᚋmodelᚐLicenseStatus(ctx context.Context, v any) (*model.LicenseStatus, error) {
@@ -18313,6 +18738,16 @@ func (ec *executionContext) marshalOLicenseStatus2ᚖbudsafeᚋbackendᚋgraph�
 	if v == nil {
 		return graphql.Null
 	}
+	return v
+}
+
+func (ec *executionContext) unmarshalOLicenseType2budsafeᚋbackendᚋgraphᚋmodelᚐLicenseType(ctx context.Context, v any) (model.LicenseType, error) {
+	var res model.LicenseType
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOLicenseType2budsafeᚋbackendᚋgraphᚋmodelᚐLicenseType(ctx context.Context, sel ast.SelectionSet, v model.LicenseType) graphql.Marshaler {
 	return v
 }
 
@@ -18503,53 +18938,6 @@ func (ec *executionContext) marshalOString2ᚖstring(ctx context.Context, sel as
 	_ = ctx
 	res := graphql.MarshalString(*v)
 	return res
-}
-
-func (ec *executionContext) marshalOUser2ᚕᚖbudsafeᚋbackendᚋgraphᚋmodelᚐUserᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.User) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	ret := make(graphql.Array, len(v))
-	var wg sync.WaitGroup
-	isLen1 := len(v) == 1
-	if !isLen1 {
-		wg.Add(len(v))
-	}
-	for i := range v {
-		i := i
-		fc := &graphql.FieldContext{
-			Index:  &i,
-			Result: &v[i],
-		}
-		ctx := graphql.WithFieldContext(ctx, fc)
-		f := func(i int) {
-			defer func() {
-				if r := recover(); r != nil {
-					ec.Error(ctx, ec.Recover(ctx, r))
-					ret = nil
-				}
-			}()
-			if !isLen1 {
-				defer wg.Done()
-			}
-			ret[i] = ec.marshalNUser2ᚖbudsafeᚋbackendᚋgraphᚋmodelᚐUser(ctx, sel, v[i])
-		}
-		if isLen1 {
-			f(i)
-		} else {
-			go f(i)
-		}
-
-	}
-	wg.Wait()
-
-	for _, e := range ret {
-		if e == graphql.Null {
-			return graphql.Null
-		}
-	}
-
-	return ret
 }
 
 func (ec *executionContext) marshalOUser2ᚖbudsafeᚋbackendᚋgraphᚋmodelᚐUser(ctx context.Context, sel ast.SelectionSet, v *model.User) graphql.Marshaler {
