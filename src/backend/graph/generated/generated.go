@@ -1836,7 +1836,7 @@ enum UserRole {
   ADMIN
   BUSINESS_OWNER
   COMPLIANCE_MANAGER
-  STAFF
+  EMPLOYEE
 }
 
 """
@@ -2182,6 +2182,7 @@ type Mutation {
 
 # Input types for mutations
 input CreateUserInput {
+  firebaseUid: ID!
   email: String!
   firstName: String!
   lastName: String!
@@ -15026,13 +15027,20 @@ func (ec *executionContext) unmarshalInputCreateUserInput(ctx context.Context, o
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"email", "firstName", "lastName", "role"}
+	fieldsInOrder := [...]string{"firebaseUid", "email", "firstName", "lastName", "role"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "firebaseUid":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("firebaseUid"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.FirebaseUID = data
 		case "email":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("email"))
 			data, err := ec.unmarshalNString2string(ctx, v)

@@ -22,7 +22,7 @@ enum UserRole {
   ADMIN
   BUSINESS_OWNER
   COMPLIANCE_MANAGER
-  STAFF
+  EMPLOYEE
 }
 
 """
@@ -368,6 +368,7 @@ type Mutation {
 
 # Input types for mutations
 input CreateUserInput {
+  firebaseUid: ID!
   email: String!
   firstName: String!
   lastName: String!

@@ -44,6 +44,9 @@ models:
   User:
     model:
       - budsafe/backend/graph/model.User
+  CreateUserInput:
+    model:
+      - budsafe/backend/graph/model.CreateUserInput
   Business:
     model:
       - budsafe/backend/graph/model.Business

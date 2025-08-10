@@ -67,13 +67,6 @@ type CreateRenewalRequirementInput struct {
 	IsCompleted bool    `json:"isCompleted"`
 }
 
-type CreateUserInput struct {
-	Email     string   `json:"email"`
-	FirstName string   `json:"firstName"`
-	LastName  string   `json:"lastName"`
-	Role      UserRole `json:"role"`
-}
-
 type DashboardSummary struct {
 	BusinessID          string          `json:"businessId"`
 	ActiveLicenses      int             `json:"activeLicenses"`
@@ -650,19 +643,19 @@ const (
 	UserRoleAdmin             UserRole = "ADMIN"
 	UserRoleBusinessOwner     UserRole = "BUSINESS_OWNER"
 	UserRoleComplianceManager UserRole = "COMPLIANCE_MANAGER"
-	UserRoleStaff             UserRole = "STAFF"
+	UserRoleEmployee          UserRole = "EMPLOYEE"
 )
 
 var AllUserRole = []UserRole{
 	UserRoleAdmin,
 	UserRoleBusinessOwner,
 	UserRoleComplianceManager,
-	UserRoleStaff,
+	UserRoleEmployee,
 }
 
 func (e UserRole) IsValid() bool {
 	switch e {
-	case UserRoleAdmin, UserRoleBusinessOwner, UserRoleComplianceManager, UserRoleStaff:
+	case UserRoleAdmin, UserRoleBusinessOwner, UserRoleComplianceManager, UserRoleEmployee:
 		return true
 	}
 	return false

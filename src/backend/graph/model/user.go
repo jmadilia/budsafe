@@ -6,7 +6,7 @@ type User struct {
 	Email      	string      `json:"email"`
 	FirstName  	*string     `json:"firstName,omitempty" db:"first_name"`
 	LastName   	*string     `json:"lastName,omitempty" db:"last_name"`
-	Role       	UserRole    `json:"role"`
+	Role       	UserRole    `json:"role" db:"role"`
 	FirebaseUID *string     `json:"firebaseUid" db:"firebase_uid"`
 	Businesses 	[]*Business `json:"businesses,omitempty"`
 	CreatedAt  	string      `json:"createdAt" db:"created_at"`
