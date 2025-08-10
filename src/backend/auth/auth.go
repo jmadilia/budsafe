@@ -100,3 +100,8 @@ func ForContext(ctx context.Context) *User {
 	raw, _ := ctx.Value(userContextKey).(*User)
 	return raw
 }
+
+// NewContext returns a new context that carries the provided user.
+func NewContext(ctx context.Context, user *User) context.Context {
+	return context.WithValue(ctx, userContextKey, user)
+}
