@@ -7,10 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "cloudproxy:dev": "cd backend && ./cloud-sql-proxy.exe budsafe:us-central1:budsafe-postgres --port 5433",
-    "backend:dev": "cd backend && go run .",
-    "backend:build": "cd backend && go build .",
-    "dev:all": "concurrently \"yarn dev\" \"cloudproxy:dev\" \"yarn backend:dev\"",
+    "cloudproxy:dev": "cd src/backend && ./cloud-sql-proxy.exe budsafe:us-central1:budsafe-postgres --port 5433",
+    "backend:dev": "cd src/backend && go run .",
+    "backend:build": "cd src/backend && go build .",
     "docker:dev": "docker-compose up"
   },
   "dependencies": {
@@ -37,3 +36,4 @@
     "typescript": "^5"
   }
 }
+
