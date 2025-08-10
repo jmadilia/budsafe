@@ -11,6 +11,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"time"
 )
 
@@ -81,14 +82,19 @@ func (r *mutationResolver) CreateUser(ctx context.Context, input model.CreateUse
 		return nil, fmt.Errorf("access denied: user not authenticated")
 	}
 
+	// --- TEMPORARY DEBUGGING LINE ---
+	// This will print the exact value and type of the role being sent to the query.
+	log.Printf("DEBUG: Attempting to insert role. Value: '%s', Type: %T", input.Role, input.Role)
+	// --- END DEBUGGING ---
+
 	// Now proceed with the user creation logic...
 	query := `
-		INSERT INTO users (id, firebase_id, email, first_name, last_name, role, created_at, updated_at)
+		INSERT INTO users (id, email, first_name, last_name, role, firebase_uid, created_at, updated_at)
 		VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, NOW(), NOW())
 		RETURNING *`
 
 	var user model.User
-	err := r.DB.GetContext(ctx, &user, query, authUser.UID, authUser.Email, input.FirstName, input.LastName, input.Role)
+	err := r.DB.GetContext(ctx, &user, query, authUser.Email, input.FirstName, input.LastName, string(input.Role), authUser.UID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create user profile: %w", err)
 	}
